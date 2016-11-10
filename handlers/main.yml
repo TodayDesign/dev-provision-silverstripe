@@ -1,2 +1,7 @@
 ---
 # handlers file for dev-provision-silverstripe
+- name: Restart nginx
+  service: name=nginx state=restarted
+
+- name: Restart php-fpm
+  service: name=php5-fpm state=restarted

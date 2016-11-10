@@ -1,140 +1,152 @@
 ---
-- hosts: all
-  become: yes
-  become_method: sudo
-  roles:
-    - nodesource.node
-  tasks:
+- name: Node | Install packages
+  npm: 
+    name: "{{ item }}"
+    global: yes
+  with_items:
+    - yarn
+    - gulp
 
-    - name: Node | Install packages
-      npm: 
-        name: "{{ item }}"
-        global: yes
-      with_items:
-        - yarn
-        - gulp
+- name: Setup | Add vagrant to sudoers
+  lineinfile:
+    "dest=/etc/sudoers
+    state=present
+    regexp='^vagrant ALL'
+    line='vagrant ALL=(ALL) NOPASSWD: ALL'"
 
-    - name: Setup | Add vagrant to sudoers
-      lineinfile:
-        "dest=/etc/sudoers
-        state=present
-        regexp='^vagrant ALL'
-        line='vagrant ALL=(ALL) NOPASSWD: ALL'"
+- name: Setup | Locale gen
+  locale_gen: name=en_AU.UTF-8 state=present
 
-    - name: Setup | Locale gen
-      locale_gen: name=en_AU.UTF-8 state=present
+- name: Setup | Install utility packages
+  apt: name={{item}} state=installed update_cache=yes
+  with_items:
+    - build-essential
+    - module-assistant
+    - rsync
+    - curl
+    - git
 
-    - name: Setup | Install utility packages
-      apt: name={{item}} state=installed update_cache=yes
-      with_items:
-        - build-essential
-        - module-assistant
-        - rsync
-        - curl
-        - git
+- name: PHP | Install packages
+  apt: name={{item}} state=installed update_cache=yes
+  with_items:
+    - php5
+    - php-pear
+    - php5-mysql
+    - php5-cli
+    - php5-dev
+    - php5-fpm
+    - php5-cgi
+    - php5-xmlrpc
+    - php5-curl
+    - php5-gd
+    - php-apc
+    - php5-imap
+    - php5-mcrypt
+    - php5-pspell
+    - rsync
+    - imagemagick
+    - libmagickcore-dev
+    - libmagickwand-dev
+    - php5-imagick
+    - php5-memcache
 
-    - name: PHP | Install packages
-      apt: name={{item}} state=installed update_cache=yes
-      with_items:
-        - php5
-        - php-pear
-        - php5-mysql
-        - php5-cli
-        - php5-dev
-        - php5-fpm
-        - php5-cgi
-        - php5-xmlrpc
-        - php5-curl
-        - php5-gd
-        - php-apc
-        - php5-imap
-        - php5-mcrypt
-        - php5-pspell
-        - rsync
-        - imagemagick
-        - libmagickcore-dev
-        - libmagickwand-dev
-        - php5-imagick
-        - php5-memcache
+- name: PHP | Configure variables for dev
+  lineinfile: 
+    dest: /etc/php5/fpm/php.ini
+    line: "{{ item.key }} = {{ item.value }}"
+    regexp: "^\\s*(;\\s*)?{{ item.key }}"
+  with_items:
+    - { key: 'display_errors', value: 'On' }
+    - { key: 'date.timezone', value: 'Australia/Melbourne' }
+  notify: 
+    - Restart php-fpm
 
-    - name: PHP | Make php-fpm.sock readable by vagrant user
-      file: 
-        path: /var/run/php5-fpm.sock
-        owner: vagrant
-        group: vagrant
+- name: PHP | Make php-fpm run as vagrant user
+  lineinfile: 
+    dest: /etc/php5/fpm/pool.d/www.conf
+    line: "{{ item }} = vagrant"
+    regexp: "^\\s*(;\\s*)?{{ item }}"
+  with_items:
+    - user
+    - group
+    - listen.owner
+    - listen.group
+  notify: 
+    - Restart php-fpm
 
-    - name: NGINX | Create sites-enabled
-      file: path=/etc/nginx/sites-enabled state=directory
+- name: NGINX | Create sites-enabled
+  file: path=/etc/nginx/sites-enabled state=directory
 
-    - name: NGINX | Add NGINX signing key
-      apt_key: url=http://nginx.org/keys/nginx_signing.key state=present
+- name: NGINX | Add NGINX signing key
+  apt_key: url=http://nginx.org/keys/nginx_signing.key state=present
 
-    - name: NGINX | Add sources.list deb url for NGINX
-      lineinfile: dest=/etc/apt/sources.list line="deb http://nginx.org/packages/debian/ jessie nginx"
+- name: NGINX | Add sources.list deb url for NGINX
+  lineinfile: dest=/etc/apt/sources.list line="deb http://nginx.org/packages/debian/ jessie nginx"
 
-    - name: NGINX | Add sources.list deb-src url for NGINX
-      lineinfile: dest=/etc/apt/sources.list line="deb-src http://nginx.org/packages/debian/ jessie nginx"
+- name: NGINX | Add sources.list deb-src url for NGINX
+  lineinfile: dest=/etc/apt/sources.list line="deb-src http://nginx.org/packages/debian/ jessie nginx"
 
-    - name: NGINX | Update apt cache
-      apt:
-        update_cache: yes
+- name: NGINX | Update apt cache
+  apt:
+    update_cache: yes
 
-    - name: NGINX | Install
-      apt:
-        pkg: nginx
-        state: latest
+- name: NGINX | Install
+  apt:
+    pkg: nginx
+    state: latest
 
-    - name: NGINX | Start
-      service:
-        name: nginx
-        state: started
+- name: NGINX | Start
+  service:
+    name: nginx
+    state: started
 
-    - name: NGINX | Global config
-      template:
-        src: nginx.conf.j2
-        dest: /etc/nginx/nginx.conf
+- name: NGINX | Global config
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+  notify: 
+    - Restart nginx
 
-    - name: NGINX | Config default website
-      template:
-        src: vhost.conf.j2
-        dest: /etc/nginx/sites-enabled/default.conf
-        mode: 0644
+- name: NGINX | Config default website
+  template:
+    src: vhost.conf.j2
+    dest: /etc/nginx/sites-enabled/default.conf
+    mode: 0644
+  notify: 
+    - Restart nginx
 
-    - name: NGINX | Check vhost folder and permissions
-      file:
-        path: "/vagrant"
-        state: directory
-        owner: "vagrant"
-        group: "vagrant"
-        mode: g+s,u=rwx,g=rwx,o=rx
+- name: NGINX | Check vhost folder and permissions
+  file:
+    path: "/vagrant"
+    state: directory
+    owner: "vagrant"
+    group: "vagrant"
+    mode: g+s,u=rwx,g=rwx,o=rx
 
-    - name: NGINX | restart nginx
-      service: name=nginx state=restarted
+- name: MySQL | Add server repository
+  apt_repository: repo='deb http://repo.mysql.com/apt/debian/ jessie mysql-5.7' state=present
 
-    - name: MySQL | Add server repository
-      apt_repository: repo='deb http://repo.mysql.com/apt/debian/ jessie mysql-5.7' state=present
+- name: MySQL | Add python connector repository
+  apt_repository: repo='deb http://repo.mysql.com/apt/debian/ jessie connector-python-2.0' state=present
 
-    - name: MySQL | Add python connector repository
-      apt_repository: repo='deb http://repo.mysql.com/apt/debian/ jessie connector-python-2.0' state=present
+- name: MySQL | Add repository key
+  shell: 'curl http://repo.mysql.com/RPM-GPG-KEY-mysql | sudo apt-key add -'
 
-    - name: MySQL | Add repository key
-      shell: 'curl http://repo.mysql.com/RPM-GPG-KEY-mysql | sudo apt-key add -'
+- name: MySQL | Install
+  apt: name={{item}} state=latest update_cache=yes
+  with_items:
+    - python-mysqldb
+    - mysql-server
 
-    - name: MySQL | Install
-      apt: name={{item}} state=latest update_cache=yes
-      with_items:
-        - python-mysqldb
-        - mysql-server
+- name: MySQL | Start
+  service:
+    name: mysql
+    state: started
 
-    - name: MySQL | Start
-      service:
-        name: mysql
-        state: started
+- name: MySQL | Set up permissions
+  mysql_user: name={{ mysql_username }} password={{ mysql_password }} priv=*.*:ALL,GRANT state=present
 
-    - name: MySQL | Set up permissions
-      mysql_user: name={{ mysql_username }} password={{ mysql_password }} priv=*.*:ALL,GRANT state=present
-
-    - name: Silverstripe | Add _ss_environment.php
-      template:
-        src: _ss_environment.php.j2
-        dest: /vagrant/_ss_environment.php
+- name: Silverstripe | Add _ss_environment.php
+  template:
+    src: _ss_environment.php.j2
+    dest: /vagrant/_ss_environment.php
