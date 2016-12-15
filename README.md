@@ -1,38 +1,62 @@
-Role Name
+dev-provision-silverstripe
 =========
 
-A brief description of the role goes here.
+This is an ansible role for provisioning a Vagrant box for working on 
+Silverstripe-based projects.
 
-Requirements
-------------
+It's a fairly straightforward LEMP stack, configured to serve out of `/vagrant`
+and includes node, yarn and gulp so that dev can happen from inside the VM.
 
-Any pre-requisites that may not be covered by Ansible itself or the role should be mentioned here. For instance, if the role uses the EC2 module, it may be a good idea to mention in this section that the boto package is required.
+This should only be used on a virtual machine for local development. It's not
+suitable at all for any kind of production or staging server.
 
 Role Variables
 --------------
 
-A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
+MySQL will be set up with `mysql_username` and `mysql_password` both set to "vagrant".
 
 Dependencies
 ------------
 
-A list of other roles hosted on Galaxy should go here, plus any details in regards to parameters that may need to be set for other roles, or variables that are used from other roles.
+This role depends on nodesource.node, geerlingguy.git and geerlingguy.composer.
 
 Example Playbook
 ----------------
 
-Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
+A sample Vagrantfile with a corresponding provision.yml file is included here.
 
-    - hosts: servers
-      roles:
-         - { role: username.rolename, x: 42 }
+### Vagrantfile:
+
+```
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "debian/jessie64"
+  config.vm.hostname = "merrihealth"
+
+  config.vm.synced_folder ".", "/vagrant", type: "virtualbox"
+
+  config.vm.network "forwarded_port", guest: 80, host: 8111
+
+  config.vm.provision "ansible" do |ansible|
+    ansible.playbook = 'provision.yml'
+  end
+end
+```
+
+### provision.yml:
+
+```
+---
+- hosts: all
+  become: yes
+  become_method: sudo
+  roles:
+    - StudioThick.dev-provision-silverstripe
+```
 
 License
 -------
 
 BSD
-
-Author Information
-------------------
-
-An optional section for the role authors to include contact information, or a website (HTML is not allowed).
