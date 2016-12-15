@@ -43,7 +43,6 @@
     - php5-imap
     - php5-mcrypt
     - php5-pspell
-    - rsync
     - imagemagick
     - libmagickcore-dev
     - libmagickwand-dev
