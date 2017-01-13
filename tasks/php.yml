@@ -46,3 +46,5 @@
   notify: 
     - Restart php-fpm
 
+- include_role: 
+    name: geerlingguy.composer
