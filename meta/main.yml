@@ -16,5 +16,4 @@ galaxy_info:
 
 dependencies: 
   - nodesource.node
-  - geerlingguy.git
   - geerlingguy.composer
