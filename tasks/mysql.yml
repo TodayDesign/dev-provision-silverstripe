@@ -1,0 +1,24 @@
+---
+- name: MySQL | Add server repository
+  apt_repository: repo='deb http://repo.mysql.com/apt/debian/ jessie mysql-5.7' state=present
+
+- name: MySQL | Add python connector repository
+  apt_repository: repo='deb http://repo.mysql.com/apt/debian/ jessie connector-python-2.0' state=present
+
+- name: MySQL | Add repository key
+  shell: 'curl http://repo.mysql.com/RPM-GPG-KEY-mysql | sudo apt-key add -'
+
+- name: MySQL | Install
+  apt: name={{item}} state=latest update_cache=yes
+  with_items:
+    - python-mysqldb
+    - mysql-server
+
+- name: MySQL | Start
+  service:
+    name: mysql
+    state: started
+
+- name: MySQL | Set up permissions
+  mysql_user: name={{ mysql_username }} password={{ mysql_password }} priv=*.*:ALL,GRANT state=present
+

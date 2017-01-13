@@ -1,0 +1,48 @@
+---
+- name: PHP | Install packages
+  apt: name={{item}} state=installed update_cache=yes
+  with_items:
+    - php5
+    - php-pear
+    - php5-mysql
+    - php5-cli
+    - php5-dev
+    - php5-fpm
+    - php5-cgi
+    - php5-xmlrpc
+    - php5-curl
+    - php5-gd
+    - php-apc
+    - php5-imap
+    - php5-mcrypt
+    - php5-pspell
+    - imagemagick
+    - libmagickcore-dev
+    - libmagickwand-dev
+    - php5-imagick
+    - php5-memcache
+
+- name: PHP | Configure variables for dev
+  lineinfile: 
+    dest: /etc/php5/fpm/php.ini
+    line: "{{ item.key }} = {{ item.value }}"
+    regexp: "^\\s*(;\\s*)?{{ item.key }}"
+  with_items:
+    - { key: 'display_errors', value: 'On' }
+    - { key: 'date.timezone', value: 'Australia/Melbourne' }
+  notify: 
+    - Restart php-fpm
+
+- name: PHP | Make php-fpm run as vagrant user
+  lineinfile: 
+    dest: /etc/php5/fpm/pool.d/www.conf
+    line: "{{ item }} = vagrant"
+    regexp: "^\\s*(;\\s*)?{{ item }}"
+  with_items:
+    - user
+    - group
+    - listen.owner
+    - listen.group
+  notify: 
+    - Restart php-fpm
+
